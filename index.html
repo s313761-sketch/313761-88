@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>小胖放置方塊得分!</title>
+    <style>
+        /* 背景貼滿整個網頁 */
+        body { 
+            background-image: url('images.jpg'); 
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            color: #000000; 
+            font-family: sans-serif; 
+            text-align: center; 
+            padding: 20px; 
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        /* 亮橘色標題 */
+        .game-title { 
+            font-size: 42px; 
+            font-weight: bold; 
+            color: #f97316; 
+            margin-bottom: 30px; 
+            text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.8); /* 增強陰影，讓標題在任何背景下都極度清晰 */
+        }
+        
+        /* 遊戲大廳主選單外框 */
+        #menu-box { 
+            max-width: 750px; 
+            margin: 0 auto; 
+            display: block; 
+            padding-top: 10px;
+        }
+        
+        /* 大廳核心內襯：改為純白不透明，確保字體與按鈕100%不被背景干擾 */
+        .menu-content {
+            background-color: #ffffff; /* 純白色，完全隔離背景 */
+            padding: 45px;
+            border-radius: 16px;
+            border: 5px solid #f97316; /* 橘色亮眼邊框 */
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6); /* 強烈陰影創造層次感 */
+        }
+        .menu-content p { 
+            font-size: 24px; 
+            color: #1e293b; 
+            line-height: 1.8; 
+            margin: 0 0 30px 0; /* 與下方按鈕保持舒適距離 */
+        }
+        
+        /* 開始按鈕 */
+        .start-btn { 
+            background-color: #10b981; 
+            color: white; 
+            font-size: 36px; 
+            font-weight: bold; 
+            padding: 22px 90px; 
+            border: 5px solid #047857; 
+            border-radius: 16px; 
+            cursor: pointer; 
+            display: inline-block;
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+            transition: transform 0.1s, background-color 0.2s; 
+        }
+        .start-btn:hover { background-color: #059669; }
+        .start-btn:active { transform: scale(0.96); }
+        
+        #game-box { display: none; margin-top: 10px; }
+        
+        /* 遊戲畫面整體佈局 */
+        .game-layout { 
+            display: inline-flex; 
+            background-color: rgba(255, 255, 255, 0.96); /* 遊戲畫面也微調更白更亮 */
+            border: 4px solid #94a3b8; 
+            padding: 20px; 
+            border-radius: 16px; 
+            text-align: left; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6); 
+        }
+        
+        /* 畫布寬高 300x525 */
+        canvas { background-color: #1e293b; border: 4px solid #475569; display: block; }
+        
+        /* 側邊欄與計分板 */
+        .sidebar { margin-left: 25px; width: 220px; display: flex; flex-direction: column; justify-content: flex-start; }
+        .info-box { background-color: #e2e8f0; border-left: 6px solid #0284c7; padding: 12px 18px; margin-bottom: 15px; border-radius: 8px; }
+        .info-box h2 { font-size: 14px; margin: 0 0 6px 0; color: #475569; letter-spacing: 1px; }
+        .info-box p { font-size: 28px; font-weight: bold; margin: 0; }
+        .control-help { font-size: 15px; color: #64748b; margin-top: 20px; line-height: 1.6; border-top: 2px dashed #cbd5e1; padding-top: 15px; }
+        
+        /* 結算彈窗 */
+        #custom-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.9); color: white; z-index: 9999; flex-direction: column; justify-content: center; align-items: center; }
+        #pop-title { font-size: 48px; color: #f59e0b; margin: 0; }
+        #pop-desc { font-size: 28px; margin: 30px 0; line-height: 1.8; text-align: center; }
+        .overlay-btn { background-color: #0284c7; color: white; border: none; padding: 20px 50px; font-size: 26px; font-weight: bold; border-radius: 10px; cursor: pointer; margin-top: 30px; }
+        .red-score { font-size: 54px; color: #ef4444; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <!-- 橘色字體標題 -->
+    <div class="game-title">小胖放置方塊得分!</div>
+
+    <!-- 主選單介面 (大廳) -->
+    <div id="menu-box">
+        <div class="menu-content">
+            <p>
+                歡迎來到小胖的俄羅斯方塊挑戰！<br>
+                總共有 5 關，每關限時 1 分鐘。<br>
+                只要在時間內放得越多方塊，分數就越多！<br>
+                <b style="color: #b91c1c;">⭐ 特殊道具：每放置 5 個方塊，下一個就會獲得閃爍炸彈！</b>
+            </p>
+            <!-- 把按鈕移入純白內襯中，確保100%看得到、點得到 -->
+            <button class="start-btn" onclick="clickRealStart();">開始遊戲</button>
+        </div>
+    </div>
+
+    <!-- 遊戲中主畫面 (寬 300, 高 525) -->
+    <div id="game-box">
+        <div class="game-layout">
+            <canvas id="tetris-canvas" width="300" height="525"></canvas>
+            
+            <div class="sidebar">
+                <div class="info-box" style="border-left-color: #dc2626;">
+                    <h2>剩餘時間 TIME</h2>
+                    <p id="ui-time">60s</p>
+                </div>
+                <div class="info-box">
+                    <h2>當前關卡 LEVEL</h2>
+                    <p id="ui-level">1 / 5</p>
+                </div>
+                <div class="info-box">
+                    <h2>本關得分 STAGE</h2>
+                    <p id="ui-stage-score">0</p>
+                </div>
+                <div class="info-box">
+                    <h2>總累計分數 TOTAL</h2>
+                    <p id="ui-total-score">0</p>
+                </div>
+                <div class="info-box" style="border-left-color: #f59e0b;">
+                    <h2>炸彈冷卻 BOMB</h2>
+                    <p id="ui-bomb-count">還差 5 個</p>
+                </div>
+                <div class="control-help">
+                    <b>操作說明：</b><br>
+                    ← → : 左右移動<br>
+                    ↑ : 旋轉方塊<br>
+                    ↓ : 加速下落<br>
+                    <span style="color: #b91c1c; font-weight: bold;">💣 炸彈碰到方塊或觸底會炸毀周圍 5x5 範圍！</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 關卡結算彈窗 -->
+    <div id="custom-overlay">
+        <h3 id="pop-title">標題</h3>
+        <p id="pop-desc">內容說明</p>
+        <button id="real-next-btn" class="overlay-btn" onclick="clickOverlayNext();">確認繼續</button>
+    </div>
+
+    <script>
+        var g_canvas = null;
+        var g_ctx = null;
+        
+        var g_grid = [];
+        for (var i = 0; i < 35; i++) {
+            var row = [];
+            for (var j = 0; j < 20; j++) { row.push(0); }
+            g_grid.push(row);
+        }
+
+        var g_playerX = 0;
+        var g_playerY = 0;
+        var g_playerMatrix = null;
+        
+        var g_totalScore = 0;
+        var g_stageScore = 0;
+        var g_currentLevel = 1;
+        var g_timeLeft = 60;
+        
+        var g_isPlaying = false;
+        var g_timerId = null;
+        var g_gameId = null;
+
+        // 炸彈相關變數
+        var g_placedCount = 0;   
+        var g_isBomb = false;    
+        var g_flashToggle = true;
+
+        var BLOCK_SIZE = 15;
+        var COLORS = [null, '#ef4444', '#10b981', '#3b82f6', '#eab308', '#f97316', '#a855f7', '#06b6d4', '#000000'];
+        var SPEEDS = [600, 500, 400, 300, 200];
+
+        var PIECES = [
+            [[0,1,0],[1,1,1],[0,0,0]], 
+            [[2,2],[2,2]],             
+            [[0,0,3],[3,3,3],[0,0,0]], 
+            [[4,0,0],[4,4,4],[0,0,0]], 
+            [[0,5,0,0],[0,5,0,0],[0,5,0,0],[0,5,0,0]], 
+            [[0,6,6],[6,6,0],[0,0,0]], 
+            [[7,7,0],[0,7,7],[0,0,0]]  
+        ];
+
+        var BOMB_PIECE = [[8,8],[8,8]];
+
+        function clickRealStart() {
+            document.getElementById('menu-box').style.display = 'none';
+            document.getElementById('game-box').style.display = 'block';
+            g_totalScore = 0;
+            g_currentLevel = 1;
+            g_placedCount = 0;
+            runStage();
+        }
+
+        function runStage() {
+            g_canvas = document.getElementById('tetris-canvas');
+            if (g_canvas) {
+                g_ctx = g_canvas.getContext('2d');
+            }
+
+            for (var y = 0; y < 35; y++) {
+                for (var x = 0; x < 20; x++) { 
+                    g_grid[y][x] = 0; 
+                }
+            }
+            
+            g_stageScore = 0;
+            g_timeLeft = 60;
+            g_isPlaying = true;
+            g_placedCount = 0;
+
+            document.getElementById('custom-overlay').style.display = 'none';
+            
+            updateUI();
+            playerReset();
+
+            clearInterval(g_timerId);
+            g_timerId = setInterval(function() {
+                if (!g_isPlaying) return;
+                g_timeLeft--;
+                document.getElementById('ui-time').innerText = g_timeLeft + 's';
+                
+                g_flashToggle = !g_flashToggle;
+                
+                if (g_timeLeft <= 0) { 
+                    settle(false); 
+                }
+            }, 1000);
+
+            clearInterval(g_gameId);
+            g_gameId = setInterval(function() {
+                if (!g_isPlaying) return;
+                playerDrop();
+                draw();
+            }, SPEEDS[g_currentLevel - 1]);
+
+            draw();
+        }
+
+        function draw() {
+            if (!g_ctx) return;
+            g_ctx.fillStyle = '#1e293b';
+            g_ctx.fillRect(0, 0, g_canvas.width, g_canvas.height);
+
+            for (var y = 0; y < 35; y++) {
+                for (var x = 0; x < 20; x++) {
+                    if (g_grid[y][x] !== 0) { 
+                        drawBlock(x, y, g_grid[y][x], false); 
+                    }
+                }
+            }
+            
+            if (g_isPlaying && g_playerMatrix) {
+                for (var y = 0; y < g_playerMatrix.length; y++) {
+                    for (var x = 0; x < g_playerMatrix[y].length; x++) {
+                        if (g_playerMatrix[y][x] !== 0) {
+                            drawBlock(x + g_playerX, y + g_playerY, g_playerMatrix[y][x], g_isBomb);
+                        }
+                    }
+                }
+            }
+        }
+
+        function drawBlock(x, y, val, isPlayerBomb) {
+            if (isPlayerBomb && g_flashToggle) {
+                g_ctx.fillStyle = '#ef4444'; 
+            } else {
+                g_ctx.fillStyle = COLORS[val];
+            }
+            g_ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+            g_ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+            g_ctx.lineWidth = 1;
+            g_ctx.strokeRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+        }
+
+        function collide() {
+            if (!g_playerMatrix) return false;
+            for (var y = 0; y < g_playerMatrix.length; y++) {
+                for (var x = 0; x < g_playerMatrix[y].length; x++) {
+                    if (g_playerMatrix[y][x] !== 0) {
+                        var nX = x + g_playerX;
+                        var nY = y + g_playerY;
+                        if (nY >= 35 || nX < 0 || nX >= 20 || (g_grid[nY] && g_grid[nY][nX] !== 0)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function playerDrop() {
+            g_playerY++;
+            if (collide()) {
+                g_playerY--;
+                
+                if (g_isBomb) {
+                    explode(g_playerX + 1, g_playerY + 1); 
+                    g_isBomb = false;
+                } else {
+                    for (var y = 0; y < g_playerMatrix.length; y++) {
+                        for (var x = 0; x < g_playerMatrix[y].length; x++) {
+                            if (g_playerMatrix[y][x] !== 0) { 
+                                g_grid[y + g_playerY][x + g_playerX] = g_playerMatrix[y][x]; 
+                            }
+                        }
+                    }
+                    g_placedCount++; 
+                }
+
+                var score = Math.floor(Math.random() * 5) + 1;
+                g_stageScore += score;
+                g_totalScore += score;
+                
+                clearLines();
+                updateUI();
+                playerReset(); 
+            }
+        }
+
+        function explode(centerX, centerY) {
+            var radius = 2; 
+            for (var y = centerY - radius; y <= centerY + radius; y++) {
+                for (var x = centerX - radius; x <= centerX + radius; x++) {
+                    if (y >= 0 && y < 35 && x >= 0 && x < 20) {
+                        g_grid[y][x] = 0; 
+                    }
+                }
+            }
+            dropFloatingBlocks();
+        }
+
+        function dropFloatingBlocks() {
+            for (var x = 0; x < 20; x++) {
+                var writeY = 34;
+                for (var y = 34; y >= 0; y--) {
+                    if (g_grid[y][x] !== 0) {
+                        var temp = g_grid[y][x];
+                        g_grid[y][x] = 0;
+                        g_grid[writeY][x] = temp;
+                        writeY--;
+                    }
+                }
+            }
+        }
+
+        function playerReset() {
+            if (g_placedCount >= 5) {
+                var deepClone = [];
+                for (var i = 0; i < BOMB_PIECE.length; i++) {
+                    deepClone.push(BOMB_PIECE[i].slice(0));
+                }
+                g_playerMatrix = deepClone;
+                g_isBomb = true;
+                g_placedCount = 0; 
+            } else {
+                var idx = Math.floor(Math.random() * PIECES.length);
+                var srcPiece = PIECES[idx];
+                var deepClone = [];
+                for (var i = 0; i < srcPiece.length; i++) {
+                    deepClone.push(srcPiece[i].slice(0));
+                }
+                g_playerMatrix = deepClone;
+                g_isBomb = false;
+            }
+            
+            g_playerY = 0;
+            g_playerX = Math.floor(20 / 2) - Math.floor(g_playerMatrix[0].length / 2);
+            
+            updateUI();
+
+            if (collide()) { 
+                settle(true); 
+            } 
+        }
+
+        function playerRotate() {
+            var len = g_playerMatrix.length;
+            var nextM = [];
+            for (var i = 0; i < len; i++) { 
+                var r = [];
+                for(var j=0; j<len; j++) r.push(0);
+                nextM.push(r); 
+            }
+            for (var y = 0; y < len; y++) {
+                for (var x = 0; x < len; x++) { 
+                    nextM[x][len - 1 - y] = g_playerMatrix[y][x]; 
+                }
+            }
+            var oldM = g_playerMatrix;
+            g_playerMatrix = nextM;
+            if (collide()) { 
+                g_playerMatrix = oldM; 
+            }
+        }
+
+        function clearLines() {
+            outer: for (var y = 34; y >= 0; y--) {
+                for (var x = 0; x < 20; x++) { 
+                    if (g_grid[y][x] === 0) continue outer; 
+                }
+                g_grid.splice(y, 1);
+                var newRow = [];
+                for (var g = 0; g < 20; g++) { newRow.push(0); }
+                g_grid.unshift(newRow);
+                y++;
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('ui-total-score').innerText = g_totalScore;
+            document.getElementById('ui-stage-score').innerText = g_stageScore;
+            document.getElementById('ui-level').innerText = g_currentLevel + ' / 5';
+            document.getElementById('ui-time').innerText = g_timeLeft + 's';
+            
+            var bombUI = document.getElementById('ui-bomb-count');
+            if (g_isBomb) {
+                bombUI.innerText = "💣 炸彈來襲！";
+                bombUI.style.color = "#dc2626";
+            } else {
+                bombUI.innerText = "還差 " + (5 - g_placedCount) + " 個";
+                bombUI.style.color = "#475569";
+            }
+        }
+
+        function settle(isFull) {
+            g_isPlaying = false;
+            clearInterval(g_timerId);
+            clearInterval(g_gameId);
+
+            var title = document.getElementById('pop-title');
+            var desc = document.getElementById('pop-desc');
+            var nextBtn = document.getElementById('real-next-btn');
+            
+            if (g_currentLevel < 5) {
+                title.innerText = isFull ? '格子已滿！自動結算' : '⏰ 關卡時間到！';
+                desc.innerHTML = '你在第 ' + g_currentLevel + ' 關獲得了 <b>' + g_stageScore + '</b> 分！<br>目前總累計分數：<b>' + g_totalScore + '</b> 分。';
+                nextBtn.innerText = '點擊進入下一關';
+            } else {
+                title.innerText = '🏆 挑戰全五關結束！';
+                desc.innerHTML = '小胖的 5 關挑戰全部結束！<br>你最終獲得的總得分為：<br><span class="red-score">' + g_totalScore + '</span> 分！';
+                nextBtn.innerText = '回到主選單';
+            }
+            document.getElementById('custom-overlay').style.display = 'flex';
+        }
+
+        function clickOverlayNext() {
+            document.getElementById('custom-overlay').style.display = 'none';
+            if (g_currentLevel < 5) {
+                g_currentLevel++;
+                runStage();
+            } else {
+                document.getElementById('game-box').style.display = 'none';
+                document.getElementById('menu-box').style.display = 'block';
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (!g_isPlaying) return;
+            if (e.keyCode === 37) { g_playerX--; if(collide()) g_playerX++; draw(); } 
+            if (e.keyCode === 39) { g_playerX++; if(collide()) g_playerX--; draw(); } 
+            if (e.keyCode === 40) { playerDrop(); draw(); } 
+            if (e.keyCode === 38) { playerRotate(); draw(); } 
+        });
+    </script>
+</body>
+</html>
